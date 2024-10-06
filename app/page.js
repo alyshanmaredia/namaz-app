@@ -1,101 +1,165 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState, useCallback, useRef } from 'react'
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Mail, Lock, User, Sunrise, Sunset, MapPin } from 'lucide-react'
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api'
+
+const mapContainerStyle = {
+  width: '100%',
+  height: '200px'
+}
+
+const center = {
+  lat: 0,
+  lng: 0
+}
+
+export default function NamazAuthWithMap() {
+  const [isLoading, setIsLoading] = useState(false)
+  const [location, setLocation] = useState('')
+  const [mapCenter, setMapCenter] = useState(center)
+  const mapRef = useRef(null)
+
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_API
+  })
+
+  const onMapClick = useCallback((event) => {
+    const lat = event.latLng.lat()
+    const lng = event.latLng.lng()
+    setMapCenter({ lat, lng })
+    setLocation(`${lat.toFixed(6)}, ${lng.toFixed(6)}`)
+  }, [])
+
+  const onMapLoad = useCallback((map) => {
+    mapRef.current = map
+  }, [])
+
+  const handleSubmit = async (event) => {
+    event.preventDefault()
+    setIsLoading(true)
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 2000))
+    setIsLoading(false)
+  }
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-green-100 p-4">
+      <Card className="w-full max-w-md bg-white shadow-lg border-0">
+        <CardHeader className="space-y-1 bg-green-600 text-white rounded-t-lg">
+          <div className="flex items-center justify-center space-x-2">
+            <div className="relative w-10 h-10">
+              <Sunrise className="absolute h-8 w-8 text-yellow-300" />
+              <Sunset className="absolute h-6 w-6 text-orange-400 right-0 bottom-0" />
+            </div>
+            <CardTitle className="text-2xl font-bold">Namaz Time</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-6">
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-8 bg-green-100">
+              <TabsTrigger value="signin" className="data-[state=active]:bg-white">Sign In</TabsTrigger>
+              <TabsTrigger value="register" className="data-[state=active]:bg-white">Register</TabsTrigger>
+            </TabsList>
+            <TabsContent value="signin">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email-signin" className="text-sm font-medium text-gray-700">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 h-4 w-4" />
+                    <Input 
+                      id="email-signin" 
+                      type="email" 
+                      placeholder="m@example.com" 
+                      required 
+                      className="pl-10 border-green-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-signin" className="text-sm font-medium text-gray-700">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 h-4 w-4" />
+                    <Input 
+                      id="password-signin" 
+                      type="password" 
+                      required 
+                      className="pl-10 border-green-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
+                  {isLoading ? "Signing In..." : "Sign In"}
+                </Button>
+              </form>
+            </TabsContent>
+            <TabsContent value="register">
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name-register" className="text-sm font-medium text-gray-700">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 h-4 w-4" />
+                    <Input 
+                      id="name-register" 
+                      type="text" 
+                      placeholder="John Doe" 
+                      required 
+                      className="pl-10 border-green-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email-register" className="text-sm font-medium text-gray-700">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 h-4 w-4" />
+                    <Input 
+                      id="email-register" 
+                      type="email" 
+                      placeholder="m@example.com" 
+                      required 
+                      className="pl-10 border-green-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="password-register" className="text-sm font-medium text-gray-700">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-green-600 h-4 w-4" />
+                    <Input 
+                      id="password-register" 
+                      type="password" 
+                      required 
+                      className="pl-10 border-green-200 focus:border-green-500 focus:ring-green-500"
+                    />
+                  </div>
+                </div>
+                {isLoaded && (
+                  <div className="h-[200px] w-full rounded-md overflow-hidden">
+                    <GoogleMap
+                      mapContainerStyle={mapContainerStyle}
+                      center={mapCenter}
+                      zoom={2}
+                      onClick={onMapClick}
+                      onLoad={onMapLoad}
+                    >
+                      <Marker position={mapCenter} />
+                    </GoogleMap>
+                  </div>
+                )}
+                <Button type="submit" className="w-full bg-green-600 hover:bg-green-700 text-white" disabled={isLoading}>
+                  {isLoading ? "Registering..." : "Register"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
     </div>
-  );
+  )
 }
