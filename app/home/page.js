@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Calendar as CalendarIcon,User, FileText, LogOut } from 'lucide-react'
+import { Calendar as CalendarIcon,User, FileText, LogOut, Link, Loader2 } from 'lucide-react'
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import {
@@ -11,6 +11,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogFooter,
+  DialogClose
 } from "@/components/ui/dialog"
 import {
     DropdownMenu,
@@ -35,6 +36,8 @@ export default function Component() {
   const [prayerTimes, setPrayerTimes] = useState([]);
   const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
   const [reportLink, setReportLink] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false)
   
 
   const fullName = user ? user.fullName : 'Guest';
@@ -201,6 +204,9 @@ export default function Component() {
   
   const handleReport = async () =>{
     try{
+      setLoading(true);
+      setIsGeneratingReport(true);
+      setIsReportDialogOpen(true)
         const payload = {
             userId : user.userId
         };
@@ -220,15 +226,19 @@ export default function Component() {
         const pdfLink = data.pdfUrl;
 
         if (pdfLink) {
+            setIsGeneratingReport(false)
             setReportLink(pdfLink)
-            setIsReportDialogOpen(true)
         } else {
             console.error("PDF link is missing in the response.");
         }
 
     }
     catch(error){
+       setIsGeneratingReport(false);
         console.error("Error generating pdf report:", error);
+    }
+    finally {
+      setLoading(false);
     }
   }
   const handleSignOut = () =>{
@@ -281,7 +291,7 @@ export default function Component() {
         <header className="text-center">
           <h1 className="text-3xl font-bold text-green-800">Hi, {fullName}</h1>
           <p className="text-green-600 mt-2">
-            Today&apos;s date: {currentDate}
+            Today&apos;s Date: {currentDate}
           </p>
         </header>
 
@@ -350,17 +360,34 @@ export default function Component() {
         <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
           <DialogContent className="sm:max-w-[425px] bg-white">
             <DialogHeader>
-              <DialogTitle className="text-green-800">Your Attendace Report</DialogTitle>
+              <DialogTitle className="text-green-800">
+                {isGeneratingReport ? 'Generating Report' : 'Report Generated Successfully'}
+              </DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-4">
-            <div className="flex justify-center">
-                <a href={reportLink} target="_blank" rel="noopener noreferrer" title="View your report">
-                    View your report
-                </a>
-            </div>
+            <div className="py-4">
+              {isGeneratingReport ? (
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                  <p className="text-green-600">Generating your report...</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-green-600 mb-4">Your report has been generated successfully. You can access it using the link below:</p>
+                  <div className="flex items-center space-x-2 bg-green-50 p-3 rounded-md">
+                    <Link className="h-4 w-4 text-green-600" />
+                    <a href={reportLink} target="_blank" rel="noopener noreferrer" className="text-green-700 hover:underline break-all">
+                      {reportLink}
+                    </a>
+                  </div>
+                </>
+              )}
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={handleReportDialogCancel} className="border-green-500 text-green-700 hover:bg-green-50">Cancel</Button>
+              <DialogClose asChild>
+                <Button className="bg-green-600 text-white hover:bg-green-700" disabled={isGeneratingReport}>
+                  {isGeneratingReport ? 'Generating...' : 'Close'}
+                </Button>
+              </DialogClose>
             </DialogFooter>
           </DialogContent>
         </Dialog>
