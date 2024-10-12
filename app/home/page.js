@@ -33,6 +33,8 @@ export default function Component() {
   const [attendance, setAttendance] = useState({})
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [prayerTimes, setPrayerTimes] = useState([]);
+  const [isReportDialogOpen, setIsReportDialogOpen] = useState(false)
+  const [reportLink, setReportLink] = useState('')
   
 
   const fullName = user ? user.fullName : 'Guest';
@@ -48,7 +50,6 @@ export default function Component() {
           const result = await response.json();
           const timings = result.data.timings;
 
-          // Transform API data into the format needed for prayerTimes state
           const fetchedPrayerTimes = [
             { name: 'Fajr', time: timings.Fajr },
             { name: 'Dhuhr', time: timings.Dhuhr },
@@ -71,18 +72,164 @@ export default function Component() {
     fetchPrayerTimes();
   }, [user]);
 
+  useEffect(() => {
+    const fetchAttendanceRecord = async () => {
+      if (user) {
+        try {
+          const response = await fetch(process.env.NEXT_PUBLIC_AWS_FUNCTION_CHECKATTENDANCERECORD, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId: user.userId,
+              date: selectedDate.toISOString().split('T')[0],
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch attendance record');
+          }
+
+          const data = await response.json();
+
+          const newAttendance = {};
+
+
+        if (data.data && data.data.PrayerTimes) {
+          console.log(data.data.PrayerTimes);
+          
+
+          for (const prayerName of Object.keys(data.data.PrayerTimes)) {
+
+            if (data.data.PrayerTimes[prayerName] === true) {
+              newAttendance[prayerName] = true; 
+            }
+          }
+        } else {
+          console.warn('No PrayerTimes data found in the response');
+        }
+  
+          console.log("Final Attendance State:", newAttendance);
+          setAttendance(newAttendance);
+        } catch (error) {
+          console.error('Error fetching attendance record:', error);
+          const allFalseAttendance = Object.fromEntries(
+            prayerTimes.map(prayer => [prayer.name, false])
+          );
+          setAttendance(allFalseAttendance);
+        }
+      }
+    };
+
+    fetchAttendanceRecord();
+  }, [selectedDate, user, prayerTimes]);
+
   const handleAttendanceChange = (prayerName) => {
     setAttendance(prev => ({ ...prev, [prayerName]: !prev[prayerName] }))
   }
 
-  const handleSave = () => {
-    // Here you would typically save the attendance data
-    console.log('Saving attendance:', { selectedDate, attendance })
-    setIsDialogOpen(false)
-  }
+  const handleSave = async () => {
+    try {
+ 
+      const fetchAttendanceData = {
+        userId: user.userId,
+        date: selectedDate.toISOString().split('T')[0],
+      };
 
-  const handleReport = () =>{
+      const attendanceObject = {
+        userId: user.userId,
+        date: selectedDate.toISOString().split('T')[0],
+        prayerTimes : attendance
+      }
 
+      const response = await fetch(process.env.NEXT_PUBLIC_AWS_FUNCTION_CHECKATTENDANCERECORD, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(fetchAttendanceData),
+      });
+  
+      console.log(response);
+
+      if (!response.ok && response.statusText !== 'Not Found') {
+        throw new Error('Failed to check attendance data');
+      }
+
+  
+      const data = await response.json();
+      console.log(data);
+  
+      if (data.exists) {
+
+        const updateResponse = await fetch(process.env.NEXT_PUBLIC_AWS_FUNCTION_UPDATEATTENDANCERECORD, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(attendanceObject),
+        });
+  
+        if (!updateResponse.ok) {
+          throw new Error('Failed to update attendance data');
+        }
+  
+        console.log('Attendance updated:', attendanceObject);
+      } else {
+
+        const createResponse = await fetch(process.env.NEXT_PUBLIC_AWS_FUNCTION_CREATEATTENDANCERECORD, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(attendanceObject),
+        });
+  
+        if (!createResponse.ok) {
+          throw new Error('Failed to create attendance data');
+        }
+  
+        console.log('Attendance created:', attendanceObject);
+      }
+  
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+    }
+  };
+  
+  const handleReport = async () =>{
+    try{
+        const payload = {
+            userId : user.userId
+        };
+        const generateReport = await fetch(process.env.NEXT_PUBLIC_AWS_FUNCTION_GENERATEPDFREPORT, {
+            method: 'POST',
+            headers: {
+            'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(payload),
+         });
+
+         if (!generateReport.ok) {
+            throw new Error('Failed to generate attendance report');
+        }
+
+        const data = await generateReport.json();
+        const pdfLink = data.pdfUrl;
+
+        if (pdfLink) {
+            setReportLink(pdfLink)
+            setIsReportDialogOpen(true)
+        } else {
+            console.error("PDF link is missing in the response.");
+        }
+
+    }
+    catch(error){
+        console.error("Error generating pdf report:", error);
+    }
   }
   const handleSignOut = () =>{
     logout();
@@ -92,6 +239,9 @@ export default function Component() {
     setAttendance({})
     setSelectedDate(new Date())
     setIsDialogOpen(false)
+  }
+  const handleReportDialogCancel = () => {
+    setIsReportDialogOpen(false)
   }
 
   return (
@@ -177,7 +327,7 @@ export default function Component() {
                   <div key={prayer.name} className="flex items-center space-x-2">
                     <Checkbox
                       id={prayer.name}
-                      checked={attendance[prayer.name]}
+                      checked={attendance[prayer.name] || false} 
                       onCheckedChange={() => handleAttendanceChange(prayer.name)}
                       className="border-green-400 text-green-600 focus:ring-green-500"
                     />
@@ -194,6 +344,23 @@ export default function Component() {
             <DialogFooter>
               <Button variant="outline" onClick={handleCancel} className="border-green-500 text-green-700 hover:bg-green-50">Cancel</Button>
               <Button onClick={handleSave} className="bg-green-600 text-white hover:bg-green-700">Save</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={isReportDialogOpen} onOpenChange={setIsReportDialogOpen}>
+          <DialogContent className="sm:max-w-[425px] bg-white">
+            <DialogHeader>
+              <DialogTitle className="text-green-800">Your Attendace Report</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+            <div className="flex justify-center">
+                <a href={reportLink} target="_blank" rel="noopener noreferrer" title="View your report">
+                    View your report
+                </a>
+            </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={handleReportDialogCancel} className="border-green-500 text-green-700 hover:bg-green-50">Cancel</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
