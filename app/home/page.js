@@ -43,7 +43,7 @@ export default function Component() {
       if (user && user.latitude && user.longitude) {
         try {
           const response = await fetch(
-            `http://api.aladhan.com/v1/timings?latitude=${user.latitude}&longitude=${user.longitude}`
+            `https://api.aladhan.com/v1/timings?latitude=${user.latitude}&longitude=${user.longitude}`
           );
           const result = await response.json();
           const timings = result.data.timings;
