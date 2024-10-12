@@ -131,7 +131,7 @@ export default function Component() {
         <header className="text-center">
           <h1 className="text-3xl font-bold text-green-800">Hi, {fullName}</h1>
           <p className="text-green-600 mt-2">
-            Today's date: {currentDate}
+            Today&apos;s date: {currentDate}
           </p>
         </header>
 
